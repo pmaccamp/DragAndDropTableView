@@ -114,7 +114,11 @@ const static CGFloat kAutoScrollingThreshold = 60;
         _cellSnapShotImageView.alpha = .6;
         [self addSubview:_cellSnapShotImageView];
         _cellSnapShotImageView.center = CGPointMake(_cellSnapShotImageView.center.x, _latestTouchPoint.y + _touchOffset.y);
-
+        _cellSnapShotImageView.layer.shadowColor = [UIColor blackColor].CGColor;
+        _cellSnapShotImageView.layer.shadowOffset = CGSizeMake(0, 0);
+        _cellSnapShotImageView.layer.shadowOpacity = 1;
+        _cellSnapShotImageView.layer.shadowRadius = 3.0;
+        
         if([self.delegate respondsToSelector:@selector(tableView:willBeginDraggingCellAtIndexPath:placeholderImageView:)])
             [((NSObject<DragAndDropTableViewDelegate> *)self.delegate) tableView:self willBeginDraggingCellAtIndexPath:_movingIndexPath placeholderImageView:_cellSnapShotImageView];
         
