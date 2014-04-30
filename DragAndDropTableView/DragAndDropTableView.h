@@ -51,7 +51,7 @@
 -(CGFloat)tableView:(DragAndDropTableView *)tableView heightForEmptySection:(int)section;
 @end
 
-@interface DragAndDropTableView : UITableView<UITableViewDataSource>
+@interface DragAndDropTableView : UITableView<UITableViewDataSource, UIGestureRecognizerDelegate>
 {
     UIGestureRecognizer *_dndLongPressGestureRecognizer;
     

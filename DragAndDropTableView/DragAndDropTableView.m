@@ -68,10 +68,17 @@ const static CGFloat kAutoScrollingThreshold = 60;
     // register gesture recognizer
     _dndLongPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(onLongPressGestureRecognizerTap:)];
     [self addGestureRecognizer:_dndLongPressGestureRecognizer];
-    
+    _dndLongPressGestureRecognizer.delegate = self;
 }
 
 #pragma mark Actions
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if ([touch.view isKindOfClass:[UIButton class]]) {
+        return NO;
+    }
+    return YES;
+}
 
 -(void)onLongPressGestureRecognizerTap:(UILongPressGestureRecognizer *)gestureRecognizer
 {
@@ -421,7 +428,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
     if(!cell)
     {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
-        cell.backgroundColor = [UIColor clearColor];
+        cell.backgroundColor = [UIColor colorWithRed:247/255.f green:242/255.f blue:239/255.f alpha:1.0f];
     }
     return cell;
 }
