@@ -80,6 +80,11 @@ const static CGFloat kAutoScrollingThreshold = 60;
     return YES;
 }
 
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+{
+    return NO;
+}
+
 -(void)onLongPressGestureRecognizerTap:(UILongPressGestureRecognizer *)gestureRecognizer
 {
     if(UIGestureRecognizerStateBegan ==  gestureRecognizer.state)
@@ -88,7 +93,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
         
         // get index path of position
         _movingIndexPath = _originIndexPath = [self indexPathForRowAtPoint:_latestTouchPoint];
-
+        
         BOOL validMove = YES;
         // Check if we are allowed to move it
         if (![self.delegate respondsToSelector:@selector(tableView:canMoveRowAtIndexPath:)])
@@ -135,7 +140,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
     else if(UIGestureRecognizerStateChanged == gestureRecognizer.state)
     {
         _latestTouchPoint = [gestureRecognizer locationInView:self];
-
+        
         // check if we've moved close enough to an edge to autoscroll, or far enough away to stop autoscrolling
         [self maybeAutoscrollForSnapshot:_cellSnapShotImageView];
         
@@ -146,12 +151,23 @@ const static CGFloat kAutoScrollingThreshold = 60;
         if(newIndexPath)
         {
             _lastIndexPathValid = YES;
+            // If we are moving up to a new indexPath, perform adjustments
+            if(![newIndexPath isEqual:_movingIndexPath] && newIndexPath.row <= _movingIndexPath.row)
+            {
+                UITableViewCell *cell = [self cellForRowAtIndexPath:newIndexPath];
+                if(cell){
+                    //If we are on the bottom half of a cell, increment the row by 1
+                    if(_latestTouchPoint.y > cell.frame.origin.y + cell.frame.size.height*3/4){
+                        newIndexPath = [NSIndexPath indexPathForRow:newIndexPath.row + 1 inSection:newIndexPath.section];
+                    }
+                }
+            }
             if(![newIndexPath isEqual:_movingIndexPath])
             {
                 // ask the delegate to show a new location for the move
-                if([self.delegate respondsToSelector:@selector(tableView:targetIndexPathForMoveFromRowAtIndexPath:toProposedIndexPath:)])
+                if([self.delegate respondsToSelector:@selector(tableView:targetIndexPathForMoveFromRowAtIndexPath:toProposedIndexPath:)]){
                     newIndexPath = [self.delegate tableView:self targetIndexPathForMoveFromRowAtIndexPath:_movingIndexPath toProposedIndexPath:newIndexPath];
-                
+                }
                 
                 [self beginUpdates];
                 [self moveRowAtIndexPath:_movingIndexPath toIndexPath:newIndexPath];
@@ -160,57 +176,11 @@ const static CGFloat kAutoScrollingThreshold = 60;
                     [self.dataSource tableView:self moveRowAtIndexPath:_movingIndexPath toIndexPath:newIndexPath];
                 [self endUpdates];
                 
-                [self bringSubviewToFront:_cellSnapShotImageView];
+                //[self bringSubviewToFront:_cellSnapShotImageView];
                 
                 _movingIndexPath = newIndexPath;
             }
-            
-            // remove the temp section if it exists and we are not proposing a move to it
-            
-            if(_tempNewSectionIndexPath && newIndexPath.section != _tempNewSectionIndexPath.section)
-            {
-
-                [self.dataSource tableView:self commitEditingStyle:UITableViewCellEditingStyleDelete forRowAtIndexPath:_tempNewSectionIndexPath];
-                _tempNewSectionIndexPath = nil;
-            }
-                
         }
-        else if(_lastIndexPathValid && !_tempNewSectionIndexPath)
-        {
-            // check if we are above or below the "valid" table and propose a new section if supported by the delegate
-            int maxSection = [self.dataSource numberOfSectionsInTableView:self];
-            NSIndexPath *proposedIndexPath = nil;
-            if(_latestTouchPoint.y > [self rectForFooterInSection:maxSection-1].origin.y) //CGRectGetMaxY([self rectForFooterInSection:maxSection-1]))
-            {
-                proposedIndexPath = [NSIndexPath indexPathForRow:0 inSection:maxSection];
-            }
-            else if (_latestTouchPoint.y < self.frame.origin.y)
-            {
-                proposedIndexPath = [NSIndexPath indexPathForRow:0 inSection:0];
-            }
-            
-            if(proposedIndexPath)
-            {
-                _lastIndexPathValid = NO;
-                
-                // check if we are allowed to create a new section
-                // creating new sections "above" the table is not supported (yet).
-                if(proposedIndexPath.section > 0 &&
-                   [self.dataSource respondsToSelector:@selector(canCreateNewSection:)] &&
-                   [self.dataSource performSelector:@selector(canCreateNewSection:) withObject:[NSNumber numberWithInteger:proposedIndexPath.section]])
-                {
-                    [self.dataSource tableView:self commitEditingStyle:UITableViewCellEditingStyleInsert forRowAtIndexPath:proposedIndexPath];
-
-                    _tempNewSectionIndexPath = proposedIndexPath;
-                    _lastIndexPathValid = YES;
-                    
-                    [self scrollToRowAtIndexPath:proposedIndexPath atScrollPosition:UITableViewScrollPositionBottom animated:YES];
-                    
-                    [self bringSubviewToFront:_cellSnapShotImageView];
-                }
-            }
-        }
-        
     }
     else if(UIGestureRecognizerStateEnded == gestureRecognizer.state)
     {
@@ -218,10 +188,10 @@ const static CGFloat kAutoScrollingThreshold = 60;
         {
             [_autoscrollTimer invalidate]; _autoscrollTimer = nil;
         }
-
+        
         // since anything can happen with the table structure in the following delegate call we use the cell as reference rather than the indexpath to it
         UITableViewCell *cell = [self cellForRowAtIndexPath:_movingIndexPath];
-
+        
         if([self.delegate respondsToSelector:@selector(tableView:didEndDraggingCellToIndexPath:placeHolderView:)])
             [((NSObject<DragAndDropTableViewDelegate> *)self.delegate) tableView:self didEndDraggingCellToIndexPath:_movingIndexPath placeHolderView:_cellSnapShotImageView];
         
@@ -234,9 +204,8 @@ const static CGFloat kAutoScrollingThreshold = 60;
             [_cellSnapShotImageView removeFromSuperview]; _cellSnapShotImageView = nil;
             [self reloadData];
         }];
-         
+        
         _proxyDataSource.movingIndexPath = nil;
-        _tempNewSectionIndexPath = nil;
     }
 }
 
@@ -264,9 +233,9 @@ const static CGFloat kAutoScrollingThreshold = 60;
 -(void)setDelegate:(id<UITableViewDelegate>)delegate
 {
     _proxyDelegate = delegate ? [[ProxyDelegate alloc] initWithDelegate:delegate] : nil;
-        
+    
     [super setDelegate:_proxyDelegate];
-} 
+}
 
 #pragma mark -
 
@@ -274,7 +243,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 - (void)maybeAutoscrollForSnapshot:(UIImageView *)snapshot
 {
-
+    
     _autoscrollDistance = 0;
     
     if (CGRectGetMaxY(snapshot.frame) < self.contentSize.height )
@@ -296,7 +265,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
             }
         }
     }
-        
+    
     // if no autoscrolling, stop and clear timer
     if (_autoscrollDistance == 0) {
         [_autoscrollTimer invalidate];
@@ -305,10 +274,10 @@ const static CGFloat kAutoScrollingThreshold = 60;
     // otherwise create and start timer (if we don't already have a timer going)
     else if (_autoscrollTimer == nil) {
         _autoscrollTimer = [NSTimer scheduledTimerWithTimeInterval:(1.0 / 60.0)
-                                                           target:self
-                                                         selector:@selector(autoscrollTimerFired:)
-                                                         userInfo:snapshot
-                                                          repeats:YES];
+                                                            target:self
+                                                          selector:@selector(autoscrollTimerFired:)
+                                                          userInfo:snapshot
+                                                           repeats:YES];
     }
 }
 
@@ -327,7 +296,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 }
 
 - (void)autoscrollTimerFired:(NSTimer*)timer {
-//    NSLog(@"autoscrolling: %.2f",_autoscrollDistance);
+    //    NSLog(@"autoscrolling: %.2f",_autoscrollDistance);
     [self legalizeAutoscrollDistance];
     // autoscroll by changing content offset
     CGPoint contentOffset = [self contentOffset];
@@ -337,7 +306,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
     // adjust thumb position so it appears to stay still
     UIImageView *snapshot = (UIImageView *)[timer userInfo];
     snapshot.center = CGPointMake(snapshot.center.x, snapshot.center.y + _autoscrollDistance);
-//    [snapshot moveByOffset:CGPointMake(_autoscrollDistance, 0)];
+    //    [snapshot moveByOffset:CGPointMake(_autoscrollDistance, 0)];
 }
 
 #pragma mark -
@@ -377,7 +346,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
         [tableView deleteRowsAtIndexPaths:[NSArray arrayWithObject:destinationIndexPath] withRowAnimation:UITableViewRowAnimationNone];
         [tableView endUpdates];
     }
-
+    
     [_dataSource tableView:tableView moveRowAtIndexPath:sourceIndexPath toIndexPath:destinationIndexPath];
     
     // if the source section is empty after the update, a fake row must be inserted
@@ -391,28 +360,6 @@ const static CGFloat kAutoScrollingThreshold = 60;
     
 }
 
--(void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    BOOL updated = NO;
-    if(UITableViewCellEditingStyleDelete == editingStyle)
-    {
-        // if there source section will be empty after the update, a fake row must be inserted
-        int rows = [_dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
-        if(rows == 1)
-        {
-            [tableView beginUpdates];
-            [_dataSource tableView:tableView commitEditingStyle:editingStyle forRowAtIndexPath:indexPath];
-            [tableView insertRowsAtIndexPaths:[NSArray arrayWithObject:indexPath] withRowAnimation:UITableViewRowAnimationNone];
-            [tableView endUpdates];
-            updated = YES;
-        }
-    }
-    
-    if(!updated)
-        [_dataSource tableView:tableView commitEditingStyle:editingStyle forRowAtIndexPath:indexPath];
-    
-}
-
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     int rows = [_dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
@@ -421,14 +368,13 @@ const static CGFloat kAutoScrollingThreshold = 60;
     {
         return [_dataSource performSelector:@selector(tableView:cellForRowAtIndexPath:) withObject:tableView withObject:indexPath];
     }
-
-    static NSString *CellIdentifier = @"EmptyCell";
     
+    static NSString *CellIdentifier = @"EmptyCell";
+    // Intentionally create the cell each time to avoid cell flashing at old location on reuse.
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
-    if(!cell)
-    {
+    if(!cell){
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
-        cell.backgroundColor = [UIColor colorWithRed:247/255.f green:242/255.f blue:239/255.f alpha:1.0f];
+        //cell.backgroundColor = [UIColor blackColor];
     }
     return cell;
 }
@@ -454,7 +400,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 -(CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     int count = [((ProxyDataSource *)tableView.dataSource).dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
-
+    
     CGFloat height = 0;
     if(count > 0)
         height = [_delegate tableView:tableView heightForRowAtIndexPath:indexPath];
@@ -462,7 +408,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
         height = [((NSObject<DragAndDropTableViewDelegate> *)_delegate) tableView:(DragAndDropTableView *)tableView heightForEmptySection:indexPath.section];
     else
         height = 0;
-
+    
     return height;
 }
 
@@ -479,6 +425,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
     {
         // if the cell is in editing mode it should return UITableViewCellEditingStyleDelete (according to the docs) otherwise no style
         UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
+        cell.exclusiveTouch = YES;
         return cell.editing ? UITableViewCellEditingStyleDelete : UITableViewCellEditingStyleNone;
     }
     

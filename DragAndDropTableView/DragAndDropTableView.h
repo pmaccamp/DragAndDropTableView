@@ -53,8 +53,6 @@
 
 @interface DragAndDropTableView : UITableView<UITableViewDataSource, UIGestureRecognizerDelegate>
 {
-    UIGestureRecognizer *_dndLongPressGestureRecognizer;
-    
     NSIndexPath *_movingIndexPath;
     NSIndexPath *_originIndexPath;
     UIImageView *_cellSnapShotImageView;
@@ -63,7 +61,6 @@
     
     CGPoint _touchOffset;
     BOOL _lastIndexPathValid;
-    NSIndexPath *_tempNewSectionIndexPath;
     
     ProxyDataSource *_proxyDataSource;
     ProxyDelegate *_proxyDelegate;
@@ -73,4 +70,5 @@
     CGPoint _latestTouchPoint;
 }
 
+@property UIGestureRecognizer *dndLongPressGestureRecognizer;
 @end
