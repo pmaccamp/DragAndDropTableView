@@ -376,6 +376,9 @@ const static CGFloat kAutoScrollingThreshold = 60;
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
         //cell.backgroundColor = [UIColor blackColor];
     }
+    // ensure empty cell appears behind other cells
+    [cell.layer setZPosition:-1];
+
     return cell;
 }
 
