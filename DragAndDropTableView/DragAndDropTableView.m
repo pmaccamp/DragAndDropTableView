@@ -14,14 +14,14 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 @interface Proxy : NSObject
 {
-    NSObject *_proxyObject;
+    __weak NSObject *_proxyObject;
 }
 
 @end
 
 @interface ProxyDataSource : Proxy<UITableViewDataSource>
 
-@property (nonatomic) NSObject<UITableViewDataSource> *dataSource;
+@property (nonatomic, weak) NSObject<UITableViewDataSource> *dataSource;
 @property (nonatomic) NSIndexPath *movingIndexPath;
 
 -(id)initWithDataSource:(id<UITableViewDataSource>)datasource;
@@ -30,7 +30,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 @interface ProxyDelegate : Proxy<UITableViewDelegate>
 {
-    NSObject<UITableViewDelegate> *_delegate;
+    __weak NSObject<UITableViewDelegate> *_delegate;
 }
 
 
@@ -213,7 +213,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 #pragma mark Overrides
 
--(int)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+-(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
     return [_proxyDataSource tableView:tableView numberOfRowsInSection:section];
 }
@@ -329,16 +329,16 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 #pragma mark UITableViewDataSource
 
--(int)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+-(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
     // if there are no cells in section we must fake one so that is will be possible to insert a row
-    int rows = [_dataSource tableView:tableView numberOfRowsInSection:section];
+    NSInteger rows = [_dataSource tableView:tableView numberOfRowsInSection:section];
     return rows == 0 ? 1 : rows;
 }
 
 -(void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)sourceIndexPath toIndexPath:(NSIndexPath *)destinationIndexPath
 {
-    int rows = [_dataSource tableView:tableView numberOfRowsInSection:destinationIndexPath.section];
+    NSInteger rows = [_dataSource tableView:tableView numberOfRowsInSection:destinationIndexPath.section];
     if(rows == 0)
     {
         // it's a fake cell, remove it
@@ -362,7 +362,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    int rows = [_dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
+    NSInteger rows = [_dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
     
     if(![indexPath isEqual:_movingIndexPath] && rows != 0)
     {
@@ -402,7 +402,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 -(CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    int count = [((ProxyDataSource *)tableView.dataSource).dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
+    NSInteger count = [((ProxyDataSource *)tableView.dataSource).dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
     
     CGFloat height = 0;
     if(count > 0)
@@ -417,7 +417,7 @@ const static CGFloat kAutoScrollingThreshold = 60;
 
 - (UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    int rows = [((ProxyDataSource *)tableView.dataSource).dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
+    NSInteger rows = [((ProxyDataSource *)tableView.dataSource).dataSource tableView:tableView numberOfRowsInSection:indexPath.section];
     
     // you can't edit/delete the place holder cells
     if(rows == 0)
